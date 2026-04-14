@@ -21,7 +21,7 @@ echo "Script reached machine and began execution."
 OFFICE_SUITE_URL="https://go.microsoft.com/fwlink/?linkid=525133"
 
 # Microsoft Teams — Universal .pkg (enterprise deployment URL)
-TEAMS_URL="https://statics.teams.cdn.office.net/production-osx/enterprise/universal/MicrosoftTeams.pkg"
+TEAMS_URL="https://go.microsoft.com/fwlink/?linkid=2249065"
 
 WORKDIR="/private/tmp/m365_install"
 mkdir -p "$WORKDIR"
