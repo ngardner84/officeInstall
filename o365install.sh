@@ -38,22 +38,45 @@ downloadPkg () {
     local url="$1"
     local dest="$2"
     local label="$3"
-    local min_size_mb="${4:-50}"   # fail if download is smaller than this
-    echo "Downloading $label..."
-    /usr/bin/curl -sSL --fail --retry 3 --retry-delay 5 -o "$dest" "$url"
-    if [ $? -ne 0 ] || [ ! -s "$dest" ]; then
-        echo "ERROR: Failed to download $label from $url"
-        return 1
-    fi
-    local size_mb
-    size_mb=$(/usr/bin/du -m "$dest" | /usr/bin/cut -f1)
-    if [ "$size_mb" -lt "$min_size_mb" ]; then
-        echo "ERROR: $label download is only ${size_mb}MB (expected >=${min_size_mb}MB). Likely a redirect/error page."
-        return 1
-    fi
-    echo "Downloaded $label (${size_mb}MB)"
-}
+    local min_size_mb="${4:-50}"
+    local max_attempts=3
+    local attempt=1
 
+    while [ $attempt -le $max_attempts ]; do
+        echo "Downloading $label (attempt $attempt/$max_attempts)..."
+        /usr/bin/curl -sSL \
+            --http1.1 \
+            --fail \
+            --retry 5 \
+            --retry-delay 10 \
+            --retry-all-errors \
+            --retry-max-time 900 \
+            --connect-timeout 30 \
+            -o "$dest" \
+            "$url"
+        local rc=$?
+
+        if [ $rc -eq 0 ] && [ -s "$dest" ]; then
+            local size_mb
+            size_mb=$(/usr/bin/du -m "$dest" | /usr/bin/cut -f1)
+            if [ "$size_mb" -ge "$min_size_mb" ]; then
+                echo "Downloaded $label (${size_mb}MB)"
+                return 0
+            else
+                echo "WARN: $label download is only ${size_mb}MB (expected >=${min_size_mb}MB). Retrying..."
+            fi
+        else
+            echo "WARN: curl exited with code $rc on attempt $attempt. Retrying..."
+        fi
+
+        rm -f "$dest"
+        attempt=$((attempt + 1))
+        sleep 15
+    done
+
+    echo "ERROR: Failed to download $label after $max_attempts attempts."
+    return 1
+}
 verifyPkg () {
     local pkg="$1"
     local label="$2"
